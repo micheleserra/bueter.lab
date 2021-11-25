@@ -1,0 +1,98 @@
+---
+title: "DRINKOMETER - KAPLAN-MEIER SURVIVAL ANALYSIS"
+author: "Michele Serra"
+date: "25 11 2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(data.table)
+library(ggplot2)
+library(survival)
+library(ggfortify)
+library(survminer)
+setwd("set_working_directory")
+```
+```{r}
+fig.dir <-"set_figure_directory"
+```
+```{r}
+Regionsfolder <- "set_data_directory"
+files_sucks <- list.files(Regionsfolder, pattern='^All_Sucks.*.csv$', full.names = TRUE)
+files_sucks
+```
+```{r}
+cols <- colnames(fread(files_sucks[1], nrows=0))
+sucks<- data.frame(fread(files_sucks[1], select = grep("", cols, value = TRUE)))
+colnames(sucks)[1] <- "inter_sucking_interval"
+head(sucks)
+```
+#remove all 0 values
+```{r}
+nopc <- sucks[sucks$inter_sucking_interval != 0, ]
+```
+#Divide the sucks based on the estimated possible PCs
+```{r}
+no13 <- nopc[nopc$inter_sucking_interval <= 1.34, ]
+no13$PC <- "13"
+no31 <- nopc[nopc$inter_sucking_interval <= 3.15, ]
+no31$PC <- "31"
+no51 <- nopc[nopc$inter_sucking_interval <= 5.13, ]
+no51$PC <- "51"
+nopc$PC <- "NO"
+```
+
+#-----------------------------------------------------------------------------------------------------------------------------------------
+##KM SURVIVAL ANALYSIS
+#-----------------------------------------------------------------------------------------------------------------------------------------
+###CREATE DATABASE
+```{r}
+PC.all <- rbind(no13, no31, no51, nopc)
+```
+#KM SURVIVAL ANALYSIS
+```{r}
+PC.all$status <- 1
+fit <- survfit(Surv(inter_sucking_interval, status) ~ PC, data = PC.all) 
+d <- data.frame(time = fit$time,
+                n.risk = fit$n.risk,
+                n.event = fit$n.event,
+                n.censor = fit$n.censor,
+                surv = fit$surv,
+                upper = fit$upper,
+                lower = fit$lower
+                )
+
+kmplot <- ggsurvplot(
+  fit, # fitted survfit object
+  data = PC.all,
+  risk.table = "abs_pct", # absolute number and percentage at risk .
+  pval = TRUE, # show $p$-value of log - rank test
+  conf.int = TRUE, # show confidence intervals
+  palette = c("blue", "green", "red", "grey"),   # choose color
+  #xlim = c(0,500),         # present narrower X axis, but not affect
+                                    # survival estimates.
+  xlab = "Inter-suck intervals (s)", # $x$-axis label
+  break.time.by = 0.25, # breaks of $x$-axis
+  ggtheme = theme_light() , # customize plot and risk table with a theme .
+  risk.table.y.text.col = TRUE, # color for risk table text
+  risk.table.height = 0.25, # the height of the risk table
+  risk.table.y.text = TRUE, # show names instead of bars in text annotations
+  # in legend of risk table
+  ncensor.plot = FALSE,      # plot the number of censored subjects at time t
+  ncensor.plot.height = 0.25,
+  conf.int.style = "ribbon",  # customize style of confidence intervals
+  surv.median.line = "hv",  # add the median survival pointer.
+  legend.labs = c("PC 1.3", "PC 3.1", "PC 5.1", "NO PC"), # legend labels
+  )
+
+pdf(paste(fig.dir, "/Figure_KM_Survival_Analysis.pdf", sep=""),
+    width = 18, 
+    height = 12)
+print(kmplot)
+dev.off()
+kmplot
+```
+
+###END

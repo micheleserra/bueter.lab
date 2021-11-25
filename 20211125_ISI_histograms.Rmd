@@ -1,0 +1,58 @@
+---
+title: "DRINKOMETER - ISI HISTOGRAMS"
+author: "Michele Serra"
+date: "25 11 2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+setwd("set_working_directory")
+```
+```{r}
+fig.dir <-"set_figure_directory"
+```
+```{r}
+Regionsfolder <- "set_data_directory"
+files_sucks <- list.files(Regionsfolder, pattern='^All_Sucks.*.csv$', full.names = TRUE)
+files_sucks
+```
+```{r}
+cols <- colnames(fread(files_sucks[1], nrows=0))
+sucks<- data.frame(fread(files_sucks[1], select = grep("", cols, value = TRUE)))
+colnames(sucks)[1] <- "inter_sucking_interval"
+head(sucks)
+```
+#remove all 0 values
+```{r}
+nopc <- sucks[sucks$inter_sucking_interval != 0, ]
+```
+### HISTOGRAMS OF ISI DISTRIBUTION OF EACH PATIENT
+```{r}
+histopc <-  ggplot(nopc, aes(log(inter_sucking_interval))) +
+  geom_histogram() +
+  facet_wrap(~subject, ncol = 4) + #scales= "free_y",
+  scale_y_continuous(limits = c(0, NA)) +
+  theme_classic()+
+  theme(legend.position = "none", strip.background = element_blank(),
+        strip.text = element_text(size=15),
+        axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size = 13),
+        plot.title = element_text(size=20),
+        axis.title.x = element_text(size=13),
+        axis.title.y = element_text(size=13),
+        plot.margin = unit(c(1, 1, 1, 1), "cm"))
+
+pdf(paste(fig.dir, "/FigureS_Histograms_ISIs_all.pdf", sep=""),
+    width = 8, 
+    height = 9)
+print(histopc)
+dev.off()
+histopc
+```
+### END
